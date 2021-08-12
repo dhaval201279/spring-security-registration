@@ -76,23 +76,36 @@ public class MySimpleUrlAuthenticationSuccessHandler implements AuthenticationSu
             logger.debug("Response has already been committed. Unable to redirect to " + targetUrl);
             return;
         }
+        logger.debug("Redirecting to : " + targetUrl);
         redirectStrategy.sendRedirect(request, response, targetUrl);
     }
 
     protected String determineTargetUrl(final Authentication authentication) {
         boolean isUser = false;
         boolean isAdmin = false;
+        boolean isManager = false;
+
         final Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         for (final GrantedAuthority grantedAuthority : authorities) {
-            if (grantedAuthority.getAuthority().equals("READ_PRIVILEGE")) {
+            if (grantedAuthority.getAuthority().equals("CHANGE_PASSWORD_PRIVILEGE")) {
+                isManager = true;
+                isAdmin = false;
+                isUser = false;
+            } else if (grantedAuthority.getAuthority().equals("READ_PRIVILEGE")) {
                 isUser = true;
+                isAdmin = false;
+                isManager = false;
             } else if (grantedAuthority.getAuthority().equals("WRITE_PRIVILEGE")) {
                 isAdmin = true;
                 isUser = false;
+                isManager = false;
                 break;
             }
         }
-        if (isUser) {
+        logger.debug("isUser : " + isUser + " - isManager : " + isManager + " - isAdmin : " + isAdmin);
+        if (isManager) {
+            return "/management.html";
+        } else if (isUser) {
         	 String username;
              if (authentication.getPrincipal() instanceof User) {
              	username = ((User)authentication.getPrincipal()).getEmail();
@@ -104,8 +117,10 @@ public class MySimpleUrlAuthenticationSuccessHandler implements AuthenticationSu
             return "/homepage.html?user="+username;
         } else if (isAdmin) {
             return "/console";
-        } else {
-            throw new IllegalStateException();
+        }  else {
+            IllegalStateException ise = new IllegalStateException();
+            logger.error("User does not have any of the role from Mgr, User and Admin", ise);
+            throw ise;
         }
     }
 
